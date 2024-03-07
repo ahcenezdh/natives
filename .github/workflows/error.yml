@@ -22,9 +22,8 @@ jobs:
         node-version: '12'
 
     - name: Get modified .md files
+      run: echo "::set-output name=modified_md_files::$(git diff --name-only HEAD HEAD~ -- '*.md')"
       id: get-modified-files
-      run: |
-        echo "::set-output name=modified_md_files::$(git diff --name-only HEAD HEAD~ -- '*.md')"
 
     - name: Check Markdown Documentation
       if: always()
