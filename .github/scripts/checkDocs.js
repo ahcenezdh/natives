@@ -52,6 +52,7 @@ const files = process.argv.slice(2);
 processFiles(files);
 
 if (errors.length > 0) {
+    console.log(errors);
     console.error("Errors found:\n" + errors.join("\n"));
     process.exit(1);
 } else {
