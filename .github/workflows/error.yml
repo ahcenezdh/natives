@@ -14,7 +14,6 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        # Fetch all history for all tags and branches
         fetch-depth: 0
 
     - name: Setup Node.js
@@ -26,6 +25,7 @@ jobs:
       id: get-modified-files
       run: |
         echo "::set-output name=modified_md_files::$(git diff --name-only HEAD HEAD~ -- '*.md')"
-    
+
     - name: Check Markdown Documentation
+      if: always()
       run: node .github/scripts/checkDocs.js ${{ steps.get-modified-files.outputs.modified_md_files }}
