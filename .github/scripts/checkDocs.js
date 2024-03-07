@@ -11,7 +11,10 @@ const rootFolders = fs.readdirSync('./', { withFileTypes: true })
 
 const errors = []; // Collects errors instead of immediately exiting the process.
 
+console.log("Directories considered as valid namespaces:", rootFolders);
+
 const checkFile = (filePath) => {
+    console.log(`Processing file: ${filePath}`);
     const content = fs.readFileSync(filePath, 'utf8');
     const nsHeaderRegex = /---\nns: (.*)\n/m;
     const nsMatch = content.match(nsHeaderRegex);
@@ -24,12 +27,10 @@ const checkFile = (filePath) => {
     const nsValue = nsMatch[1].trim();
 
     if (!rootFolders.includes(nsValue)) {
-        // Report error if ns doesn't exist as a directory
         errors.push(`The namespace '${nsValue}' specified in ${filePath} does not exist as a directory in the project.`);
     } else {
         const folderName = path.basename(path.dirname(filePath));
         if (nsValue !== folderName) {
-            // Report error if file is in the wrong directory based on ns
             errors.push(`The file \`${path.basename(filePath)}\` is located in the '${folderName}' directory but should be in '${nsValue}' (based on the ns).`);
         }
     }
@@ -49,11 +50,15 @@ const processFiles = (files) => {
 };
 
 const files = process.argv.slice(2);
-processFiles(files);
-
-if (errors.length > 0) {
-    console.error("Errors found:\n" + errors.join("\n"));
-    process.exit(1);
+if (files.length === 0) {
+    console.error("No files provided to the script.");
 } else {
-    console.log("No errors found.");
+    processFiles(files);
+
+    if (errors.length > 0) {
+        console.error("Errors found:\n" + errors.join("\n"));
+        process.exit(1);
+    } else {
+        console.log("No errors found.");
+    }
 }
