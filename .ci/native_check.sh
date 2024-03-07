@@ -1,50 +1,63 @@
 #!/bin/bash
 
-set -euo pipefail
+set -eu
 
-# Detect modified .md files
-changed_docs() {
-    local commit_range="$1"
-    git diff --name-only "$commit_range" -- '*.md'
+# Function to fetch the list of directories in the project
+get_project_directories() {
+    # List all directories except .github, .git, and .ci
+    find . -mindepth 1 -maxdepth 1 -type d ! -name '.github' ! -name '.git' ! -name '.ci'
 }
 
-# Determine commit range
-commit_range="HEAD~1..HEAD"
-if [ ! -z "${GITHUB_SHA-}" ]; then
-    commit_range="${GITHUB_SHA}~1..${GITHUB_SHA}"
-fi
+# Function to check if a namespace exists
+check_namespace_exists() {
+    local ns="$1"
+    local project_directories=($(get_project_directories))
 
-echo "Checking documentation changes between $commit_range"
+    for dir in "${project_directories[@]}"; do
+        if [[ "$dir" == "$ns" ]]; then
+            return 0  # Namespace exists
+        fi
+    done
 
-# Obtain a list of all project directories excluding .git, .github, and .ci
-readarray -t valid_ns_dirs < <(find . -maxdepth 1 -type d -not -path "./.git" -not -path "./.github" -not -path "./.ci" -exec basename {} \;)
+    return 1  # Namespace does not exist
+}
 
-# Loop through each modified Markdown file
-while IFS= read -r md_file; do
-    echo "Processing $md_file..."
+# Function to validate a file
+validate_file() {
+    local file="$1"
+    local content="$(<"$file")"
+    local ns_regex="^---\s*\nns:\s*(\S+)\s*\n"
 
-    # Extract 'ns' from the Markdown file
-    ns=$(grep -Po '^---\nns: \K.*' "$md_file" | head -n 1)
+    # Check if the file contains an ns header
+    if [[ "$content" =~ $ns_regex ]]; then
+        local ns="${BASH_REMATCH[1]}"
+        local folder_name="$(basename "$(dirname "$file")")"
 
-    if [[ -z "$ns" ]]; then
-        printf "Error: 'ns' missing in $md_file"
+        # Check if the namespace exists
+        if ! check_namespace_exists "$ns"; then
+            printf "The namespace '%s' specified in %s does not exist as a directory in the project.\n" "$ns" "$file" >&2
+            exit 1
+        fi
+
+        # Check if the namespace matches the folder name
+        if [[ "$ns" != "$folder_name" ]]; then
+            printf "The file '%s' is located in the '%s' directory but should be in '%s'.\n" "$(basename "$file")" "$folder_name" "$ns" >&2
+            exit 1
+        fi
+    else
+        printf "Invalid or missing 'ns' header in %s\n" "$file" >&2
         exit 1
     fi
+}
 
-    # Check if 'ns' exists as a project directory
-    if [[ ! " ${valid_ns_dirs[*]} " =~ " ${ns} " ]]; then
-        printf "Error: The namespace '${ns}' specified in ${md_file} does not exist as a directory in the project."
-        exit 1
-    fi
+# Main function
+main() {
+    local modified_files="$@"
 
-    # Determine the directory name of the current file
-    folderName=$(basename "$(dirname "$md_file")")
+    for file in $modified_files; do
+        validate_file "$file"
+    done
+}
 
-    # Check if file is in the correct directory according to its 'ns' value
-    if [[ "$ns" != "$folderName" ]]; then
-        printf "Error: The file \`${md_file}\` is located in the '${folderName}' directory but should be in '${ns}'."
-        exit 1
-    fi
-
-    echo "$md_file successfully verified."
-done < <(changed_docs "$commit_range")
+# Invoke the main function with the list of modified files
+main "$@"
