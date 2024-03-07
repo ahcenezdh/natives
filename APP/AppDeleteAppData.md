@@ -1,5 +1,5 @@
 ---
-ns: AAAA
+ns: AAAAZZZ
 ---
 ## APP_DELETE_APP_DATA
 
