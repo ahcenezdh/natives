@@ -2,37 +2,50 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * Recursively checks documentation in the specified directory.
- * @param {string} dir The directory to check.
+ * Checks the documentation of the provided file if it matches the criteria.
+ * @param {string} filePath The path to the file to check.
  */
-const checkDocumentation = (dir) => {
-  fs.readdirSync(dir, { withFileTypes: true }).forEach((file) => {
-    if (file.isDirectory()) {
-      const workspacePath = path.join(dir, file.name);
-      fs.readdirSync(workspacePath).forEach((doc) => {
-        const docPath = path.join(workspacePath, doc);
-        if (doc.endsWith('.md')) {
-          const content = fs.readFileSync(docPath, 'utf8');
+const checkFile = (filePath) => {
+    const content = fs.readFileSync(filePath, 'utf8');
 
-          // Check for the ns header
-          const nsHeaderRegex = /^---\nns: (.*)\n---/m;
-          const nsMatch = content.match(nsHeaderRegex);
-          if (!nsMatch) {
-            console.error(`Invalid or missing 'ns' header in ${docPath}`);
-            process.exit(1);
-          }
-
-          // Verify if ns matches the directory name (workspace)
-          const nsValue = nsMatch[1];
-          if (nsValue !== file.name) {
-            console.error(`The native \`${doc}\` is located in the '${file.name}' directory but should be in '${nsValue}' (based on the ns).`);
-            process.exit(1);
-          }
-        }
-      });
+    // Check for the ns header
+    const nsHeaderRegex = /^---\nns: (.*)\n---/m;
+    const nsMatch = content.match(nsHeaderRegex);
+    if (!nsMatch) {
+        console.error(`Invalid or missing 'ns' header in ${filePath}`);
+        process.exit(1);
     }
-  });
+
+    // Verify if ns matches the directory name (workspace)
+    const nsValue = nsMatch[1];
+    const folderName = path.basename(path.dirname(filePath));
+    if (nsValue !== folderName) {
+        console.error(`The native \`${path.basename(filePath)}\` is located in the '${folderName}' directory but should be in '${nsValue}' (based on the ns).`);
+        process.exit(1);
+    }
 };
 
-// Start checking from the project's workspace directories under the root
-checkDocumentation('./');
+/**
+ * Processes each file passed to the script, ignoring README.md, .github, and .ci directories.
+ * @param {string[]} files The array of file paths to process.
+ */
+const processFiles = (files) => {
+    files.forEach((file) => {
+        // Normalize file path for consistent comparison across platforms
+        const normalizedFile = path.normalize(file);
+        
+        // Check for exclusions
+        if (normalizedFile.includes(path.normalize('/.github/')) || normalizedFile.includes(path.normalize('/.ci/')) || normalizedFile === 'README.md') {
+            console.log(`Ignoring file: ${file}`);
+            return; // Skip this file
+        }
+
+        checkFile(normalizedFile);
+    });
+};
+
+// Gets the file paths from the command line arguments
+const files = process.argv.slice(2);
+
+// Process each file, excluding specific files and directories
+processFiles(files);
