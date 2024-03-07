@@ -1,0 +1,24 @@
+name: Validate Markdown Documentation
+
+on:
+  push:
+    paths:
+      - '**/*.md'
+      - '!README.md'
+      - '!.github/**'
+
+jobs:
+  validate-markdown:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Make script executable
+        run: chmod +x .ci/natives-check.sh
+
+      - name: Run validation script
+        run: ./.ci/native_check.sh
+        env:
+          GITHUB_SHA: ${{ github.sha }}
