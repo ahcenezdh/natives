@@ -27,14 +27,14 @@ while IFS= read -r md_file; do
     ns=$(grep -Po '^---\nns: \K.*' "$md_file" | head -n 1)
 
     if [[ -z "$ns" ]]; then
-        echo "Error: 'ns' missing in $md_file"
-        continue
+        printf "Error: 'ns' missing in $md_file"
+        exit 1
     fi
 
     # Check if 'ns' exists as a project directory
     if [[ ! " ${valid_ns_dirs[*]} " =~ " ${ns} " ]]; then
-        echo "Error: The namespace '${ns}' specified in ${md_file} does not exist as a directory in the project."
-        continue
+        printf "Error: The namespace '${ns}' specified in ${md_file} does not exist as a directory in the project."
+        exit 1
     fi
 
     # Determine the directory name of the current file
@@ -42,8 +42,8 @@ while IFS= read -r md_file; do
 
     # Check if file is in the correct directory according to its 'ns' value
     if [[ "$ns" != "$folderName" ]]; then
-        echo "Error: The file \`${md_file}\` is located in the '${folderName}' directory but should be in '${ns}'."
-        continue
+        printf "Error: The file \`${md_file}\` is located in the '${folderName}' directory but should be in '${ns}'."
+        exit 1
     fi
 
     echo "$md_file successfully verified."
