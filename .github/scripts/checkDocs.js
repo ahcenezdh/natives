@@ -32,13 +32,12 @@ const checkFile = (filePath) => {
     const nsValue = nsMatch[1].trim();
     const folderName = path.basename(path.dirname(filePath));
     if (nsValue !== folderName) {
-        errors.push(`The native \`${path.basename(filePath)}\` is located in the '${folderName}' directory but should be in '${nsValue}' (based on the ns).`);
-        return;
+        errors.push(`The file \`${path.basename(filePath)}\` is located in the '${folderName}' directory but should be in '${nsValue}' (based on the ns).`);
     }
 
     // Verify if the ns exists as a folder name in the project
     if (!rootFolders.includes(nsValue)) {
-        errors.push(`The namespace '${nsValue}' specified in ${filePath} does not exist as a directory in the project.`);
+        errors.push(`The namespace '${nsValue}' specified in ${filePath} does not exist as a directory in the project. It should be one of ${rootFolders.join(', ')}.`);
         return;
     }
 };
