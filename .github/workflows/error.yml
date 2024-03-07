@@ -1,0 +1,29 @@
+name: Validate Markdown Documentation
+
+on:
+  push:
+    paths:
+      - '**/*.md'
+
+jobs:
+  check-markdown-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        path: './'
+        fetch-depth: 2
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '12'
+
+    - name: Get modified .md files
+      id: get-modified-files
+      run: |
+        echo "::set-output name=modified_md_files::$(git diff --name-only HEAD HEAD~ -- '*.md')"
+    
+    - name: Check Markdown Documentation
+      run: node .github/scripts/checkDocs.js ${{ steps.get-modified-files.outputs.modified_md_files }}
