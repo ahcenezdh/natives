@@ -1,5 +1,5 @@
 ---
-ns: APP
+ns: TEST
 ---
 ## APP_CLEAR_BLOCK
 
