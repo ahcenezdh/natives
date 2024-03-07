@@ -1,5 +1,5 @@
 ---
-ns: BRAIN
+ns: APP
 ---
 ## APP_DELETE_APP_DATA
 
