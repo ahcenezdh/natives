@@ -1,5 +1,5 @@
 ---
-ns: AAA
+ns: AAAA
 ---
 ## APP_CLEAR_BLOCK
 
