@@ -1,5 +1,5 @@
 ---
-ns: APPAAAAAAAAAAA
+ns: APP
 ---
 ## APP_CLOSE_APP
 

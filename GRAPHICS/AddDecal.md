@@ -1,5 +1,5 @@
 ---
-ns: GRAPHICSAAAAAAAAA
+ns: GRAPHICS
 ---
 ## ADD_DECAL
 
