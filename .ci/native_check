@@ -1,32 +1,34 @@
 #!/bin/bash
 
-# Define exclusions
-EXCLUDE_DIRS=".github .ci .git"
-EXCLUDE_FILES="README.md"
-
-# Retrieve the names of all directories at the project's root, excluding specified ones
-ROOT_DIRS=$(ls -d */ | egrep -v $(echo $EXCLUDE_DIRS | sed 's/ /|/g') | cut -f1 -d'/')
+# Retrieve the names of all directories at the project's root
+ROOT_DIRS=$(find . -maxdepth 1 -type d | cut -c 3- | egrep -v '^\.(git|github|ci)$')
 
 # Variable to store namespace errors
 NS_ERRORS=""
 
+# Function to check if a file should be excluded
+is_excluded() {
+    local file=$1
+    [[ "$file" == ".github"* || "$file" == ".ci"* || "$file" == ".git"* || "$file" == "README.md" ]]
+}
+
 # Iterate over all files included in the last commit
-for file in $(git diff --name-only HEAD^); do
-    # Skip excluded files
-    if [[ " $EXCLUDE_FILES " =~ " $file " ]]; then
+git diff --name-only HEAD^ | while read file; do
+    # Skip excluded files or directories
+    if is_excluded "$file"; then
         continue
     fi
 
-    # Check if the file is a directory or matches an exclusion pattern
-    if [[ -d "$file" ]] || [[ $EXCLUDE_DIRS =~ $(basename "$file") ]]; then
+    # Attempt to extract the namespace from the file, assuming it's specified as "--- ns: XXXX"
+    NS=$(sed -n '/^---$/,/^---$/{/^ns:/p;}' "$file" | sed 's/ns: //')
+
+    # If no namespace is extracted, continue to the next file
+    if [ -z "$NS" ]; then
         continue
     fi
-
-    # Extract the namespace from the file, assuming it's specified as "ns: XXXX"
-    NS=$(grep -m 1 '^---' $file | sed -n 's/^---\nns: //p')
 
     # Check if the extracted namespace exists among the root directories
-    if [[ ! " $ROOT_DIRS " =~ " $NS " ]]; then
+    if ! grep -q "^$NS$" <<< "$ROOT_DIRS"; then
         # If the namespace doesn't exist, add an error message
         NS_ERRORS+="\nError: Namespace '$NS' in file '$file' does not exist."
     fi
@@ -34,7 +36,7 @@ done
 
 # Output namespace errors if any
 if [ ! -z "$NS_ERRORS" ]; then
-    echo -e $NS_ERRORS
+    echo -e "$NS_ERRORS"
     exit 1
 else
     echo "All namespaces are valid."
