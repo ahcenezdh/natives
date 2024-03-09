@@ -1,5 +1,10 @@
 #!/bin/bash
 
+set -eu
+
+# include common script
+. "$(dirname "$0")"/common.sh
+
 # Retrieve the names of all directories at the project's root
 ROOT_DIRS=$(find . -maxdepth 1 -type d | cut -c 3- | egrep -v '^\.(git|github|ci)$')
 
@@ -36,8 +41,7 @@ done
 
 # Output namespace errors if any
 if [ ! -z "$NS_ERRORS" ]; then
-    echo -e "$NS_ERRORS"
-    exit 1
+    die "$NS_ERRORS"
 else
-    echo "All namespaces are valid."
+    print -s1 -c2 "All namespaces are valid."
 fi
