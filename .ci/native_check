@@ -6,9 +6,15 @@ set -eu
 # Include the common utility script
 . "$(dirname "$0")"/common.sh
 
+# Diagnostic print function
+diagnostic_print() {
+    echo "::debug:: $1"
+}
+
 # Function to list changed Markdown files in a commit range
 changed_files() {
     local commit_range="$1"
+    diagnostic_print "Checking commit range: $commit_range"
     # List only Markdown files that were Added (A), Copied (C), Modified (M), or Renamed (R)
     git diff --name-only --diff-filter=ACMR "$commit_range" -- '*.md'
 }
@@ -26,6 +32,8 @@ echo 'Affected Markdown files:'
 changed_files "$COMMIT_RANGE" | while read file; do
     if [ -z "$file" ]; then continue; fi  # Skip if no file is found
 
+    diagnostic_print "Processing file: $file"
+
     # Skip specific directories and the README.md file
     if [[ "$file" == .ci/* || "$file" == .github/* || "$file" == .git/* || "$file" == "README.md" ]]; then
         print -s0 -c3 "Skipping excluded file or directory: $file"
@@ -36,6 +44,8 @@ changed_files "$COMMIT_RANGE" | while read file; do
 
     # Attempt to extract the namespace from the file
     NS=$(sed -n '/^---$/,/^---$/{/^ns:/p;}' "$file" | sed 's/ns: //' | tr -d '[:space:]')
+    diagnostic_print "Extracted namespace: '$NS' from $file"
+
     if [ -z "$NS" ]; then
         print -s0 -c3 "No namespace found in $file. Skipping..."
         successful_files="$successful_files $file"
@@ -50,6 +60,7 @@ changed_files "$COMMIT_RANGE" | while read file; do
     else
         print -s0 -c1 "Invalid namespace '$NS' in $file."
         failed_files="$failed_files $file"
+        diagnostic_print "Marked as invalid: $file"
     fi
 
     fold_end "$file"
@@ -61,13 +72,14 @@ if [ -n "$successful_files" ]; then
     print -s1 -c2 "Successfully verified files:$successful_files\n"
 fi
 
-# Directly check for non-empty failed_files using a different approach
+diagnostic_print "Failed files: $failed_files"
+
+# Check if failed_files is non-empty more reliably by removing spaces and newline characters
 if [[ -n "$failed_files" ]]; then
-    # Explicitly reporting which files failed to make the error message clearer
-    print -s0 -c1 "Verification failed for files:$failed_files"
-    die "Some namespaces are invalid. Check above for details."
+    diagnostic_print "Entering die condition with failed files."
+    die "Verification failed for files:$failed_files"
 else
-    # If there were successful files, but no failed_files, all namespaces are valid.
+    diagnostic_print "No failed files detected."
     if [[ -n "$successful_files" ]]; then
         print -s1 -c2 'All namespaces are valid.'
     else
