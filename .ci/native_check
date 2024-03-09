@@ -63,5 +63,5 @@ fi
 if [ -n "$failed_files" ]; then
     die "Verification failed for files:$failed_files"
 else
-    print -s1 -c3 'All namespaces are valid or no Markdown files were changed.'
+    print -s1 -c3 'All namespaces are valid.'
 fi
