@@ -6,9 +6,9 @@ set -eu
 # Include the common utility script
 . "$(dirname "$0")"/common.sh
 
-# Diagnostic print function
+# Diagnostic print function that outputs to stderr to avoid disrupting file name processing
 diagnostic_print() {
-    echo "::debug:: $1"
+    echo "::debug:: $1" >&2
 }
 
 # Function to list changed Markdown files in a commit range
@@ -59,7 +59,7 @@ changed_files "$COMMIT_RANGE" | while read file; do
         successful_files="$successful_files $file"
     else
         print -s0 -c1 "Invalid namespace '$NS' in $file."
-        failed_files="$failed_files $file"
+        failed_files="$failed_files$file\n"
         diagnostic_print "Marked as invalid: $file"
     fi
 
@@ -74,12 +74,11 @@ fi
 
 diagnostic_print "Failed files: $failed_files"
 
-# Check if failed_files is non-empty more reliably by removing spaces and newline characters
 if [[ -n "$failed_files" ]]; then
     diagnostic_print "Entering die condition with failed files."
-    die "Verification failed for files:$failed_files"
+    print -s0 -c1 "Verification failed for files:\n$failed_files"
+    die "Some namespaces are invalid. Check above for details."
 else
-    diagnostic_print "No failed files detected."
     if [[ -n "$successful_files" ]]; then
         print -s1 -c2 'All namespaces are valid.'
     else
