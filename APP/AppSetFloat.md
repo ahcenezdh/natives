@@ -8,9 +8,6 @@ ns: APP
 void APP_SET_FLOAT(char* property, float value);
 ```
 
-```
-TEST
-```
 
 
 ## Parameters
