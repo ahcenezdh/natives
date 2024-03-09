@@ -11,5 +11,5 @@ jobs:
         fetch-depth: 0
     - name: Check Namespace Natives
       run: |
-        -set xe
+        set -xe
         bash ./.ci/native_check
