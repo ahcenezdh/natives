@@ -8,5 +8,7 @@ ns: APP
 BOOL APP_HAS_LINKED_SOCIAL_CLUB_ACCOUNT();
 ```
 
+```
+
 
 ## Return value
