@@ -1,18 +1,13 @@
 #!/bin/bash
 
-# Set bash to exit immediately if any command fails and treat unset variables as an error
 set -eu
 
 # Include the common utility script
 . "$(dirname "$0")"/common.sh
 
-# Use a flag to indicate failure
-failure_detected=0
-
 # Function to list changed Markdown files in a commit range
-changed_files() {
+changed_docs() {
     local commit_range="$1"
-    # List only Markdown files that were Added (A), Copied (C), Modified (M), or Renamed (R)
     git diff --name-only --diff-filter=ACMR "$commit_range" -- '*.md'
 }
 
@@ -21,10 +16,12 @@ COMMIT_RANGE="${COMMIT_LIST:-$(git rev-parse HEAD~1)..HEAD}"
 
 title "Verifying namespaces in changed Markdown files between $COMMIT_RANGE"
 
-echo 'Affected Markdown files:'
-changed_files "$COMMIT_RANGE" | while read file; do
-    if [ -z "$file" ]; then continue; fi  # Skip if no file is found
+# Begin processing files
+failed_files=''
+successful_files=''
 
+echo 'Affected Markdown files:'
+for file in $(changed_docs "$COMMIT_RANGE"); do
     # Skip specific directories and the README.md file
     if [[ "$file" == .ci/* || "$file" == .github/* || "$file" == .git/* || "$file" == "README.md" ]]; then
         continue
@@ -36,6 +33,8 @@ changed_files "$COMMIT_RANGE" | while read file; do
     NS=$(sed -n '/^---$/,/^---$/{/^ns:/p;}' "$file" | sed 's/ns: //' | tr -d '[:space:]')
 
     if [ -z "$NS" ]; then
+        # If no namespace found, consider it successful for the sake of continuing
+        successful_files="$successful_files $file"
         fold_end "$file"
         continue
     fi
@@ -43,17 +42,20 @@ changed_files "$COMMIT_RANGE" | while read file; do
     # Check if the namespace directory exists at the project root
     if [ ! -d "$NS" ]; then
         print -s0 -c1 "Invalid namespace '$NS' in $file."
-        failure_detected=1
+        failed_files="$failed_files $file "
+    else
+        successful_files="$successful_files $file"
     fi
 
     fold_end "$file"
 done
 
-# Final output and exit handling
 printf '\n----\n'
-
-if [ "$failure_detected" -eq 1 ]; then
-    die "Some namespaces are invalid. Check above for details."
-else
-    print -s1 -c2 'All namespaces are valid or no Markdown files were changed.'
+if [ -n "$successful_files" ]; then
+    print -s1 -c2 "Successfully verified files:$successful_files\n"
+fi
+if [ -n "$failed_files" ]; then
+    die "Verification failed for files:$failed_files"
+elif [ -z "$successful_files" ]; then
+    print -s1 -c3 'No Markdown files were changed or no namespaces found.'
 fi
