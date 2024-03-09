@@ -61,11 +61,16 @@ if [ -n "$successful_files" ]; then
     print -s1 -c2 "Successfully verified files:$successful_files\n"
 fi
 
-# Check if failed_files is non-empty more reliably by removing spaces and newline characters
-if [ -n "$(echo $failed_files | tr -d '[:space:]')" ]; then
-    die "Verification failed for files:$failed_files"
-elif [ -z "$successful_files" ]; then
-    print -s1 -c3 'No Markdown files were changed or no namespaces found.'
+# Directly check for non-empty failed_files using a different approach
+if [[ -n "$failed_files" ]]; then
+    # Explicitly reporting which files failed to make the error message clearer
+    print -s0 -c1 "Verification failed for files:$failed_files"
+    die "Some namespaces are invalid. Check above for details."
 else
-    print -s1 -c2 'All namespaces are valid.'
+    # If there were successful files, but no failed_files, all namespaces are valid.
+    if [[ -n "$successful_files" ]]; then
+        print -s1 -c2 'All namespaces are valid.'
+    else
+        print -s1 -c3 'No Markdown files were changed or no namespaces found.'
+    fi
 fi
