@@ -1,47 +1,67 @@
 #!/bin/bash
 
+# Set bash to exit immediately if any command fails and treat unset variables as an error
 set -eu
 
-# include common script
+# Include the common utility script
 . "$(dirname "$0")"/common.sh
 
-# Retrieve the names of all directories at the project's root
-ROOT_DIRS=$(find . -maxdepth 1 -type d | cut -c 3- | egrep -v '^\.(git|github|ci)$')
-
-# Variable to store namespace errors
-NS_ERRORS=""
-
-# Function to check if a file should be excluded
-is_excluded() {
-    local file=$1
-    [[ "$file" == ".github"* || "$file" == ".ci"* || "$file" == ".git"* || "$file" == "README.md" ]]
+# Function to list changed Markdown files in a commit range
+changed_files() {
+    local commit_range="$1"
+    # List only Markdown files that were Added (A), Copied (C), Modified (M), or Renamed (R)
+    git diff --name-only --diff-filter=ACMR "$commit_range" -- '*.md'
 }
 
-# Iterate over all files included in the last commit
-git diff --name-only HEAD^ | while read file; do
-    # Skip excluded files or directories
-    if is_excluded "$file"; then
+# Determine the commit range for the current push
+COMMIT_RANGE="${COMMIT_LIST:-$(git rev-parse HEAD~1)..HEAD}"
+
+title "Verifying namespaces in changed Markdown files between $COMMIT_RANGE"
+
+# Begin processing files
+failed_files=''
+successful_files=''
+
+echo 'Affected Markdown files:'
+changed_files "$COMMIT_RANGE" | while read file; do
+    if [ -z "$file" ]; then continue; fi  # Skip if no file is found
+
+    # Skip specific directories and the README.md file
+    if [[ "$file" == .ci/* || "$file" == .github/* || "$file" == .git/* || "$file" == "README.md" ]]; then
+        print -s0 -c3 "Skipping excluded file or directory: $file"
         continue
     fi
 
-    # Attempt to extract the namespace from the file, assuming it's specified as "--- ns: XXXX"
-    NS=$(sed -n '/^---$/,/^---$/{/^ns:/p;}' "$file" | sed 's/ns: //')
+    fold_start "$file" "Verifying $file"
 
-    # If no namespace is extracted, continue to the next file
+    # Attempt to extract the namespace from the file
+    NS=$(sed -n '/^---$/,/^---$/{/^ns:/p;}' "$file" | sed 's/ns: //' | tr -d '[:space:]')
     if [ -z "$NS" ]; then
+        print -s0 -c3 "No namespace found in $file. Skipping..."
+        successful_files="$successful_files $file"
+        fold_end "$file"
         continue
     fi
 
-    # Check if the extracted namespace exists among the root directories
-    if ! grep -q "^$NS$" <<< "$ROOT_DIRS"; then
-        # If the namespace doesn't exist, add an error message
-        NS_ERRORS+="\nError: Namespace '$NS' in file '$file' does not exist."
+    # Check if the namespace directory exists at the project root
+    if [ -d "$NS" ]; then
+        print -s0 -c2 "Valid namespace '$NS' found in $file."
+        successful_files="$successful_files $file"
+    else
+        print -s0 -c1 "Invalid namespace '$NS' in $file."
+        failed_files="$failed_files $file"
     fi
+
+    fold_end "$file"
 done
 
-# Output namespace errors if any
-if [ ! -z "$NS_ERRORS" ]; then
-    die "$NS_ERRORS"
+# Final output and exit handling
+printf '\n----\n'
+if [ -n "$successful_files" ]; then
+    print -s1 -c2 "Successfully verified files:$successful_files\n"
+fi
+if [ -n "$failed_files" ]; then
+    die "Verification failed for files:$failed_files"
 else
-    print -s1 -c2 "All namespaces are valid."
+    print -s1 -c3 'All namespaces are valid or no Markdown files were changed.'
 fi

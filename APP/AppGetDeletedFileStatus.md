@@ -1,5 +1,5 @@
 ---
-ns: APPAAAA
+ns: APP
 ---
 ## APP_GET_DELETED_FILE_STATUS
 
