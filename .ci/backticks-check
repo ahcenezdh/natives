@@ -1,6 +1,7 @@
 #!/bin/bash
 set -eu
 
+# Include the common utility script
 . "$(dirname "$0")"/common.sh
 
 first_commit_sha=$(echo $COMMIT_LIST | jq -r '.[0].sha')
@@ -13,7 +14,7 @@ title "Verifying code block syntax in changed Markdown files between $commit_ran
 affected_files=$(git diff --name-only --diff-filter=ACMR $commit_range -- '*.md')
 
 if [ -z "$affected_files" ]; then
-    print -s1 -c3 'No Markdown files were changed or no issues found.'
+    print -s1 -c3 'No Markdown files were changed or no code block issues found.'
     exit 0
 fi
 
@@ -35,7 +36,7 @@ for file in $affected_files; do
 done
 
 if [ -n "$failed_files" ]; then
-    echo -e "$failed_files"
+    echo -e "The following files have mismatched code blocks:\n$failed_files"
     die "Verification failed for the above files."
 else
     print -s1 -c2 'All code blocks are correctly closed.'
