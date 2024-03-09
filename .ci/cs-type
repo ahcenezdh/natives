@@ -1,0 +1,60 @@
+#!/bin/bash
+set -eu
+
+# Include the common utility script
+. "$(dirname "$0")"/common.sh
+
+first_commit_sha=$(echo $COMMIT_LIST | jq -r '.[0].sha')
+last_commit_sha=$(echo $COMMIT_LIST | jq -r '.[-1].sha')
+
+# Constructing the commit range for git diff
+commit_range="${first_commit_sha}..${last_commit_sha}"
+
+title "Verifying type and pointer changes in function declarations between $commit_range"
+
+affected_files=$(git diff --name-only --diff-filter=ACMR $commit_range -- '*.md')
+
+# Check if there are any affected files
+if [ -z "$affected_files" ]; then
+    print -s1 -c3 'No documentation files were changed or no type/pointer issues found.'
+    exit 0
+fi
+
+# Types requiring cs_type when changed
+require_cs_type_for="uint Hash"
+
+# Types treated as int or bool but not requiring cs_type unless they are special cases like uint or Hash
+types_treated_as_int_or_bool="Void Any AnyPtr Entity Player DecisionMaker FireId Ped Vehicle Cam CarGenerator Group Train Pickup Object Weapon Interior Blip Texture TextureDict CoverPoint Camera TaskSequence ColourIndex Sphere ScrHandle ItemSet AnimScene PersChar PopZone Prompt PropSet Volume BOOL bool"
+
+failed_files=''
+successful_files=''
+
+for file in $affected_files; do
+    if echo "$file" | grep -qE '^(.github|.ci|.git|README.md)'; then
+        continue
+    fi
+
+    # Fetching differences in function declarations
+    diff=$(git diff $commit_range -- "$file" | grep -E '^\+.*void|int|char|Any|float' || true)
+
+    if [[ "$diff" ]]; then
+        # Check for necessary cs_type usage
+        if echo "$diff" | grep -E '^\+.*(uint|Hash)' && ! echo "$diff" | grep -q 'cs_type'; then
+            failed_files+="Missing cs_type for 'uint' or 'Hash' in $file\n"
+        # Check for pointer type changes that might require special handling
+        elif echo "$diff" | grep -E '^\+.*(\*|Any\*|char\*|float\*)' && ! echo "$diff" | grep -q 'cs_type'; then
+            failed_files+="Potential missing cs_type for pointer type change in $file\n"
+        elif echo "$diff" | grep -P '^\+.*('$(echo $types_treated_as_int_or_bool | sed 's/ /|/g')')' && echo "$diff" | grep -q 'cs_type'; then
+            failed_files+="Unnecessary cs_type for type treated as 'int' or 'bool' in $file\n"
+        else
+            successful_files+="$file "
+        fi
+    fi
+done
+
+if [ -n "$failed_files" ]; then
+    echo -e "The following files have issues with type or pointer changes in function declarations:\n$failed_files"
+    die "Verification failed for the above files."
+else
+    print -s1 -c2 'All type and pointer changes in function declarations are correct.'
+fi

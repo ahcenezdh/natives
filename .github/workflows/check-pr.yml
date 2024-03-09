@@ -28,3 +28,4 @@ jobs:
           bash ./.ci/run-pr
           bash ./.ci/namespace-check
           bash ./.ci/backticks-check
+          bash ./.ci/cs-type
