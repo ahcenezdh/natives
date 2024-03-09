@@ -6,15 +6,12 @@ set -eu
 # Include the common utility script
 . "$(dirname "$0")"/common.sh
 
-# Diagnostic print function that outputs to stderr to avoid disrupting file name processing
-diagnostic_print() {
-    echo "::debug:: $1" >&2
-}
+# Use a flag to indicate failure
+failure_detected=0
 
 # Function to list changed Markdown files in a commit range
 changed_files() {
     local commit_range="$1"
-    diagnostic_print "Checking commit range: $commit_range"
     # List only Markdown files that were Added (A), Copied (C), Modified (M), or Renamed (R)
     git diff --name-only --diff-filter=ACMR "$commit_range" -- '*.md'
 }
@@ -24,19 +21,12 @@ COMMIT_RANGE="${COMMIT_LIST:-$(git rev-parse HEAD~1)..HEAD}"
 
 title "Verifying namespaces in changed Markdown files between $COMMIT_RANGE"
 
-# Begin processing files
-failed_files=''
-successful_files=''
-
 echo 'Affected Markdown files:'
 changed_files "$COMMIT_RANGE" | while read file; do
     if [ -z "$file" ]; then continue; fi  # Skip if no file is found
 
-    diagnostic_print "Processing file: $file"
-
     # Skip specific directories and the README.md file
     if [[ "$file" == .ci/* || "$file" == .github/* || "$file" == .git/* || "$file" == "README.md" ]]; then
-        print -s0 -c3 "Skipping excluded file or directory: $file"
         continue
     fi
 
@@ -44,23 +34,16 @@ changed_files "$COMMIT_RANGE" | while read file; do
 
     # Attempt to extract the namespace from the file
     NS=$(sed -n '/^---$/,/^---$/{/^ns:/p;}' "$file" | sed 's/ns: //' | tr -d '[:space:]')
-    diagnostic_print "Extracted namespace: '$NS' from $file"
 
     if [ -z "$NS" ]; then
-        print -s0 -c3 "No namespace found in $file. Skipping..."
-        successful_files="$successful_files $file"
         fold_end "$file"
         continue
     fi
 
     # Check if the namespace directory exists at the project root
-    if [ -d "$NS" ]; then
-        print -s0 -c2 "Valid namespace '$NS' found in $file."
-        successful_files="$successful_files $file"
-    else
+    if [ ! -d "$NS" ]; then
         print -s0 -c1 "Invalid namespace '$NS' in $file."
-        failed_files="$failed_files$file\n"
-        diagnostic_print "Marked as invalid: $file"
+        failure_detected=1
     fi
 
     fold_end "$file"
@@ -68,20 +51,9 @@ done
 
 # Final output and exit handling
 printf '\n----\n'
-if [ -n "$successful_files" ]; then
-    print -s1 -c2 "Successfully verified files:$successful_files\n"
-fi
 
-diagnostic_print "Failed files: $failed_files"
-
-if [[ -n "$failed_files" ]]; then
-    diagnostic_print "Entering die condition with failed files."
-    print -s0 -c1 "Verification failed for files:\n$failed_files"
+if [ "$failure_detected" -eq 1 ]; then
     die "Some namespaces are invalid. Check above for details."
 else
-    if [[ -n "$successful_files" ]]; then
-        print -s1 -c2 'All namespaces are valid.'
-    else
-        print -s1 -c3 'No Markdown files were changed or no namespaces found.'
-    fi
+    print -s1 -c2 'All namespaces are valid or no Markdown files were changed.'
 fi
