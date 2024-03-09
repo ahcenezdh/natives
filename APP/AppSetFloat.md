@@ -5,7 +5,7 @@ ns: APP
 
 ```c
 // 0x25D7687C68E0DAA4 0xF3076135
-char APP_SET_FLOAT(char* property, float value);
+cs_type(void) char APP_SET_FLOAT(char* property, float value);
 ```
 
 

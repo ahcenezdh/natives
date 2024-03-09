@@ -5,7 +5,7 @@ ns: AUDIO
 
 ```c
 // 0x120C48C614909FA4 0x38B9B8D4
-float* CLEAR_AMBIENT_ZONE_LIST_STATE(cs_type(AnyPtr) char* zoneListName, BOOL forceUpdate);
+cs_type(void) float* CLEAR_AMBIENT_ZONE_LIST_STATE(cs_type(AnyPtr) char* zoneListName, BOOL forceUpdate);
 ```
 
 Resets the list of ambients zones enabled/disabled status to its value before it was modified by this script.
