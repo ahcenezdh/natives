@@ -1,24 +1,15 @@
-name: Validate Markdown Documentation
+name: Check Namespace Natives
 
-on:
-  push:
-    paths:
-      - '**/*.md'
-      - '!README.md'
-      - '!.github/**'
+on: [push]
 
 jobs:
-  validate-markdown:
+  check-ns:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Make script executable
-        run: chmod +x .ci/native_check.sh
-
-      - name: Run validation script
-        run: ./.ci/native_check.sh
-        env:
-          GITHUB_SHA: ${{ github.sha }}
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Check Namespace Natives
+      run: |
+        -set xe
+        bash ./.ci/native_check

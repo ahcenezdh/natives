@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# Define exclusions
+EXCLUDE_DIRS=".github .ci .git"
+EXCLUDE_FILES="README.md"
+
+# Retrieve the names of all directories at the project's root, excluding specified ones
+ROOT_DIRS=$(ls -d */ | egrep -v $(echo $EXCLUDE_DIRS | sed 's/ /|/g') | cut -f1 -d'/')
+
+# Variable to store namespace errors
+NS_ERRORS=""
+
+# Iterate over all files included in the last commit
+for file in $(git diff --name-only HEAD^); do
+    # Skip excluded files
+    if [[ " $EXCLUDE_FILES " =~ " $file " ]]; then
+        continue
+    fi
+
+    # Check if the file is a directory or matches an exclusion pattern
+    if [[ -d "$file" ]] || [[ $EXCLUDE_DIRS =~ $(basename "$file") ]]; then
+        continue
+    fi
+
+    # Extract the namespace from the file, assuming it's specified as "ns: XXXX"
+    NS=$(grep -m 1 '^---' $file | sed -n 's/^---\nns: //p')
+
+    # Check if the extracted namespace exists among the root directories
+    if [[ ! " $ROOT_DIRS " =~ " $NS " ]]; then
+        # If the namespace doesn't exist, add an error message
+        NS_ERRORS+="\nError: Namespace '$NS' in file '$file' does not exist."
+    fi
+done
+
+# Output namespace errors if any
+if [ ! -z "$NS_ERRORS" ]; then
+    echo -e $NS_ERRORS
+    exit 1
+else
+    echo "All namespaces are valid."
+fi
